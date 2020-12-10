@@ -1,45 +1,8 @@
 {-#LANGUAGE LambdaCase, BlockArguments#-}
 module Main where
 
-import Lib
-import Data.List
-
-data Turing = Turing {
-      program::TuringFunction
-    , initialState::TState
-    , input::String
-    , acceptedStates::[TState]
-} deriving (Show, Eq)
-
-type TState = Int
-
-newtype TuringFunction = TuringFunction {unTF::(TState, Char) -> Maybe (TState, Char, TDirection)}
-
-instance Show TuringFunction where
-    show _ = "<TuringFunction>"
-
-instance Eq TuringFunction where
-    _ == _ = False
-
-data TDirection = TLeft | TRight | TStay deriving (Show, Eq)
-
-runTuring :: Turing -> ([(TState, Zipper Char)], Bool) -- Accepted
-runTuring t = let res = (initialState t, Zipper [' '] (input t)) : runTuring' t (initialState t) (Zipper [] (input t)) in
-        (res, fst (last res) `elem` acceptedStates t)
-
-runTuring' :: Turing -> TState -> Zipper Char -> [(TState, Zipper Char)]
-runTuring' t s mem = case unTF (program t) (s, currentT mem) of
-    Just (s', c', dir) -> (s', moveDir dir (set c' mem)):runTuring' t s' (moveDir dir (set c' mem))
-    Nothing -> []
-
-moveDir :: TDirection -> Zipper Char -> Zipper Char
-moveDir TLeft z = prevT z
-moveDir TRight z = nextT z
-moveDir TStay z = z
-
-runTuringPrint :: Turing -> IO ()
-runTuringPrint t = let (res, accepted) = runTuring t in
-    mapM_ print res >> putStrLn ("\nAccepted: " <> show accepted)
+import TuringMachine
+import Lib ((∈), (∉))
 
 t1 :: Turing
 t1 = Turing {
@@ -53,7 +16,6 @@ t1 = Turing {
           _ -> Nothing
     , initialState=0
     , acceptedStates=[4]
-    , input="1336"
     -- (133[678])+
     -- Output:
     -- (1337)+ # gleiche Anzahl wie input
@@ -70,17 +32,35 @@ t2a = Turing {
         _ -> Nothing
     , initialState=3
     , acceptedStates=[2]
-    , input="1"
     -- Q = {q0, q1, q2, q3}
     -- E = {0, 1}
-    -- Gamma = E `union` {B}
+    -- Gamma = {0, 1, B}
     -- F = {q2}
     }
 
 t2b :: Turing
 t2b = Turing {
+    program = TuringFunction \case
+        (0, x) | x ∈ ['0', '1'] -> Just (0, x, TRight)
+        (0, 'B') -> Just (1, 'B', TLeft)
+        (1, '0') -> Just (2, '0', TLeft)
+        (2, '0') -> Just (3, '0', TLeft)
+        (3, '0') -> Just (4, '0', TStay)
+        _ -> Nothing
+    , initialState=0
+    , acceptedStates=[4]
+    }
 
+t2c :: Turing
+t2c = Turing {
+    program = TuringFunction \case
+        (0, x) | x ∈ ['0', '1'] -> Just (0, x, TRight)
+        (0, 'B') -> Just (1, '1', TRight)
+        (1, 'B') -> Just (2, '1', TStay)
+        _ -> Nothing
+    , initialState=0
+    , acceptedStates=[2]
     }
 
 main :: IO ()
-main = runTuringPrint t2a
+main = runTuringPrint t2c "110101"
