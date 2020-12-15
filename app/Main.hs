@@ -1,5 +1,7 @@
-{-#LANGUAGE LambdaCase, BlockArguments#-}
+{-#LANGUAGE LambdaCase, BlockArguments, OverloadedStrings#-}
 module Main where
+
+import Web.Scotty as S
 
 import TuringMachine
 import Lib ((∈), (∉))
@@ -44,23 +46,30 @@ t2b = Turing {
         (0, x) | x ∈ ['0', '1'] -> Just (0, x, TRight)
         (0, 'B') -> Just (1, 'B', TLeft)
         (1, '0') -> Just (2, '0', TLeft)
+        --(1, '1') -> Just (5, '1', TStay)
         (2, '0') -> Just (3, '0', TLeft)
+        (2, '1') -> Just (5, '1', TStay)
         (3, '0') -> Just (4, '0', TStay)
+        (3, '1') -> Just (5, '1', TStay)
         _ -> Nothing
     , initialState=0
-    , acceptedStates=[4]
+    , acceptedStates=[4, 3, 2]
     }
 
 t2c :: Turing
 t2c = Turing {
     program = TuringFunction \case
-        (0, x) | x ∈ ['0', '1'] -> Just (0, x, TRight)
-        (0, 'B') -> Just (1, '1', TRight)
-        (1, 'B') -> Just (2, '1', TStay)
+        (0, x) | x ∈ ['0', '1'] -> Just (1, x, TRight)
+        (1, x) | x ∈ ['0', '1'] -> Just (1, x, TRight)
+        (1, 'B') -> Just (2, '1', TRight)
+        (2, 'B') -> Just (3, '1', TStay)
         _ -> Nothing
     , initialState=0
-    , acceptedStates=[2]
+    , acceptedStates=[3]
     }
 
 main :: IO ()
-main = runTuringPrint t2c "110101"
+main = scotty 4567 $ do
+    get "/" $ file "public/index.html"
+    get "/index.js" $ file "public/index.js"
+
