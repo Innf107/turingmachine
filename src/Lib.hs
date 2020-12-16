@@ -42,13 +42,13 @@ set x (Zipper ls []) = Zipper ls [x]
 
 
 nextT :: Zipper Char -> Zipper Char
-nextT = next' 'B'
+nextT = next' '_'
 
 prevT :: Zipper Char -> Zipper Char
-prevT = prev' 'B'
+prevT = prev' '_'
 
 currentT :: Zipper Char -> Char
-currentT = current' 'B'
+currentT = current' '_'
 
 (∈) :: (Foldable f, Eq a ) => a -> f a -> Bool
 (∈) = elem

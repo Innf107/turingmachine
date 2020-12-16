@@ -32,7 +32,7 @@ stringSelect : List (Attribute msg) -> List String -> Html msg
 stringSelect attributes options = select attributes <| List.map (option [] << List.singleton << text) options
 
 charInput : (Maybe Char -> msg) -> Char -> Html msg
-charInput setter getter = input [A.value (String.fromChar getter), E.onInput (setter <<  Maybe.map fst << String.uncons)] []
+charInput setter getter = input [A.class "char-input", A.value (String.fromChar getter), E.onInput (setter << last << String.toList)] []
 
 const : a -> b -> a
 const x _ = x
@@ -58,3 +58,27 @@ hasAt i x l = case (i, l) of
     (_, []) -> False
     (0, y::ys) -> x == y
     (_, _::ys) -> hasAt (i - 1) x ys
+
+removeAt : Int -> List a -> List a
+removeAt i l = case (i, l) of
+    (0, _::xs) -> xs
+    (_, []) -> []
+    (_, x::xs) -> x::(removeAt (i - 1) xs)
+
+type alias Setter a s = (a -> a) -> s -> s
+
+either : (e -> b) -> (a -> b) -> Result e a -> b
+either f g x = case x of
+    Err e -> f e
+    Ok ok -> g ok
+
+maybe : b -> (a -> b) -> Maybe a -> b
+maybe d f x = case x of
+    Nothing -> d
+    Just ok -> f ok
+
+last : List a -> Maybe a
+last l = case l of
+    [] -> Nothing
+    (x::[]) -> Just x
+    (_::xs) -> last xs

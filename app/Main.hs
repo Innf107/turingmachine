@@ -1,75 +1,50 @@
-{-#LANGUAGE LambdaCase, BlockArguments, OverloadedStrings#-}
+{-#LANGUAGE LambdaCase, BlockArguments, OverloadedStrings, TypeApplications#-}
 module Main where
 
 import Web.Scotty as S
 
+import Data.Aeson
+import qualified Data.Text.Lazy as T
+
+import qualified Elm
+
 import TuringMachine
 import Lib ((∈), (∉))
+import Data.Maybe (fromJust)
 
-t1 :: Turing
-t1 = Turing {
-      program=TuringFunction \case
-          (0, '1') -> Just (1, '1', TRight)
-          (2, '3') -> Just (3, '3', TRight)
-          (1, '3') -> Just (2, '3', TRight)
-          (4, '1') -> Just (1, '1', TRight)
-          (3, z) | z ∈ ['6','7','8'] -> Just (4, '7', TRight)
-          (4, x) | x ∉ ['1', 'B'] -> Just (5, 'B', TStay)
-          _ -> Nothing
-    , initialState=0
-    , acceptedStates=[4]
-    -- (133[678])+
-    -- Output:
-    -- (1337)+ # gleiche Anzahl wie input
-    }
-
-t2a :: Turing
-t2a = Turing {
-      program = TuringFunction \case
-        (3, x) | x ∈ ['0', '1'] -> Just (0, x, TRight)
-        (0, x) | x ∈ ['0', '1'] -> Just (0, x, TRight)
-        (0, 'B') -> Just (1, 'B', TLeft)
-        (1, x) | x ∈ ['0', '1'] -> Just (1, x, TLeft)
-        (1, 'B') -> Just (2, 'B', TRight)
-        _ -> Nothing
-    , initialState=3
-    , acceptedStates=[2]
-    -- Q = {q0, q1, q2, q3}
-    -- E = {0, 1}
-    -- Gamma = {0, 1, B}
-    -- F = {q2}
-    }
-
-t2b :: Turing
-t2b = Turing {
-    program = TuringFunction \case
-        (0, x) | x ∈ ['0', '1'] -> Just (0, x, TRight)
-        (0, 'B') -> Just (1, 'B', TLeft)
-        (1, '0') -> Just (2, '0', TLeft)
-        --(1, '1') -> Just (5, '1', TStay)
-        (2, '0') -> Just (3, '0', TLeft)
-        (2, '1') -> Just (5, '1', TStay)
-        (3, '0') -> Just (4, '0', TStay)
-        (3, '1') -> Just (5, '1', TStay)
-        _ -> Nothing
-    , initialState=0
-    , acceptedStates=[4, 3, 2]
-    }
-
-t2c :: Turing
-t2c = Turing {
-    program = TuringFunction \case
-        (0, x) | x ∈ ['0', '1'] -> Just (1, x, TRight)
-        (1, x) | x ∈ ['0', '1'] -> Just (1, x, TRight)
-        (1, 'B') -> Just (2, '1', TRight)
-        (2, 'B') -> Just (3, '1', TStay)
-        _ -> Nothing
-    , initialState=0
-    , acceptedStates=[3]
-    }
 
 main :: IO ()
 main = scotty 4567 $ do
     get "/" $ file "public/index.html"
+    get "/about" $ file "public/about.html"
     get "/index.js" $ file "public/index.js"
+    get "/main.css" $ file "public/main.css"
+    post "/runTuring" $ do
+        mmodel <- eitherDecode @Elm.Model <$> body
+        model <- case mmodel of
+            Left e -> raiseStatus (toEnum 400) $ T.pack $ "Invalid Inputs: " ++ e
+            Right x -> return x
+        let (steps, accepted) = runTuring (toTuring model) (Elm.input model)
+        S.text $ T.pack ("Accepted: " ++ show accepted ++ unlines (map show steps))
 
+toTuring :: Elm.Model -> Turing
+toTuring model = Turing {
+        initialState = translateState (Elm.initialState model)
+      , acceptedStates = map translateState (Elm.acceptedStates model)
+      , program = TuringFunction $ flip lookup (toTFMap (Elm.delta model))
+    }
+    where
+        stateMap :: [(String, Int)]
+        stateMap = zip (Elm.states model) [0..]
+        translateState :: String -> Int
+        translateState s = case lookup s stateMap of
+            Nothing -> error $ "InvalidState: " ++ show s
+            Just x -> x
+
+        toTFMap :: [Elm.TuringFunction] -> [((TState, Char), (TState, Char, TDirection))]
+        toTFMap = map (\tf -> (
+            (translateState (Elm.inputState tf),
+             Elm.inputChar tf),
+            (translateState (Elm.outputState tf),
+             Elm.outputChar tf,
+             Elm.outputMovement tf)))

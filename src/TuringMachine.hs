@@ -1,7 +1,12 @@
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
+
 module TuringMachine where
 
 import Lib
 import Data.List
+import Data.Aeson
+import GHC.Generics (Generic)
 
 data Turing = Turing {
       program::TuringFunction

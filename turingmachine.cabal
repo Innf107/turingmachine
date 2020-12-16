@@ -41,6 +41,7 @@ library
 executable turingmachine-exe
   main-is: Main.hs
   other-modules:
+      Elm
       Paths_turingmachine
   hs-source-dirs:
       app
